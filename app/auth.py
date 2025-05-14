@@ -6,6 +6,11 @@ from models import models
 from passlib.context import CryptContext
 from jose import jwt
 import os
+from pydantic import BaseModel
+
+class LoginInput(BaseModel):
+    email: str
+    password: str
 
 router = APIRouter()
 SECRET_KEY = os.getenv("SECRET_KEY", "mysecret")
@@ -39,9 +44,9 @@ def signup(email: str, password: str, db: Session = Depends(get_db)):
     return {"message": "User created"}
 
 @router.post("/login")
-def login(email: str, password: str, db: Session = Depends(get_db)):
-    user = db.query(models.User).filter(models.User.email == email).first()
-    if not user or not pwd_context.verify(password, user.hashed_password):
-        raise HTTPException(status_code=400, detail="Invalid credentials")
+def login(data: LoginInput, db: Session = Depends(get_db)):
+    user = db.query(models.User).filter(models.User.email == data.email).first()
+    if not user or not pwd_context.verify(data.password, user.hashed_password):
+        raise HTTPException(status_code=401, detail="Invalid credentials")
     token = jwt.encode({"user_id": user.id}, SECRET_KEY, algorithm=ALGORITHM)
     return {"token": token}

@@ -2,8 +2,20 @@
 from fastapi import FastAPI
 from app import auth, user, chat, template
 from database import create_tables
+from fastapi.middleware.cors import CORSMiddleware
 
 app = FastAPI()
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=[
+        "http://localhost:3000",           # ✅ 개발 환경
+        "https://fastapi-backend-p5j9.onrender.com",  # ✅ 자기 자신도 포함
+    ],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 # 라우터 등록
 app.include_router(auth.router, prefix="/auth")
