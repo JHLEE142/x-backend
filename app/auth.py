@@ -12,6 +12,10 @@ class LoginInput(BaseModel):
     email: str
     password: str
 
+class SignupInput(BaseModel):
+    email: str
+    password: str
+
 router = APIRouter()
 SECRET_KEY = os.getenv("SECRET_KEY", "mysecret")
 ALGORITHM = "HS256"
@@ -25,10 +29,10 @@ def get_db():
         db.close()
 
 @router.post("/signup")
-def signup(email: str, password: str, db: Session = Depends(get_db)):
-    hashed_pw = pwd_context.hash(password)
+def signup(data: SignupInput, db: Session = Depends(get_db)):
+    hashed_pw = pwd_context.hash(data.password)
     user = models.User(
-        email=email,
+        email=data.email,
         hashed_password=hashed_pw,
         nickname="NewUser",
         selected_model="GPT-4",
