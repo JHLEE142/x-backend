@@ -15,6 +15,7 @@ class LoginInput(BaseModel):
 class SignupInput(BaseModel):
     email: str
     password: str
+    nickname: str
 
 router = APIRouter()
 SECRET_KEY = os.getenv("SECRET_KEY", "mysecret")
@@ -34,9 +35,9 @@ def signup(data: SignupInput, db: Session = Depends(get_db)):
     user = models.User(
         email=data.email,
         hashed_password=hashed_pw,
-        nickname="NewUser",
-        selected_model="GPT-4",
-        plan="Pro",
+        nickname=data.nickname,
+        selected_model="",
+        plan="",
         total_tokens_used=0,
         credit_usage=0,
         requests_processed=0,
@@ -50,27 +51,27 @@ def signup(data: SignupInput, db: Session = Depends(get_db)):
 def verify_password(plain_password, hashed_password):
     return pwd_context.verify(plain_password, hashed_password)
 
-#@router.post("/login")
-#def login(data: LoginInput, db: Session = Depends(get_db)):
-#    user = db.query(models.User).filter(models.User.email == data.email).first()
-#    if not user or not pwd_context.verify(data.password, user.hashed_password):
-#        raise HTTPException(status_code=401, detail="Invalid credentials")
-#    token = jwt.encode({"user_id": user.id}, SECRET_KEY, algorithm=ALGORITHM)
-#    return {"token": token}
-
 @router.post("/login")
-def login(login_data: dict, db: Session = Depends(SessionLocal)):
-    print("📩 로그인 시도:", login_data["email"])
-    user = db.query(User).filter(User.email == login_data["email"]).first()
+def login(data: LoginInput, db: Session = Depends(get_db)):
+    user = db.query(models.User).filter(models.User.email == data.email).first()
+    if not user or not pwd_context.verify(data.password, user.hashed_password):
+        raise HTTPException(status_code=401, detail="Invalid credentials")
+    token = jwt.encode({"user_id": user.id}, SECRET_KEY, algorithm=ALGORITHM)
+    return {"token": token}
 
-    if not user:
-        print("❌ 사용자 없음")
-        raise HTTPException(status_code=400, detail="Invalid credentials")
+#@router.post("/login")
+#def login(login_data: dict, db: Session = Depends(SessionLocal)):
+#    print("📩 로그인 시도:", login_data["email"])
+#    user = db.query(User).filter(User.email == login_data["email"]).first()
 
-    print("🔐 비밀번호 검증 시작")
-    if not verify_password(login_data["password"], user.hashed_password):
-        print("❌ 비밀번호 불일치")
-        raise HTTPException(status_code=400, detail="Invalid credentials")
+#    if not user:
+#        print("❌ 사용자 없음")
+#        raise HTTPException(status_code=400, detail="Invalid credentials")
 
-    print("✅ 로그인 성공")
-    return {"message": "Login successful", "user_id": user.id}
+#    print("🔐 비밀번호 검증 시작")
+#    if not verify_password(login_data["password"], user.hashed_password):
+#        print("❌ 비밀번호 불일치")
+#        raise HTTPException(status_code=400, detail="Invalid credentials")
+
+#    print("✅ 로그인 성공")
+#    return {"message": "Login successful", "user_id": user.id}

@@ -10,11 +10,11 @@ class User(Base):
      id = Column(Integer, primary_key=True, index=True)
      email = Column(String, unique=True, index=True)
      hashed_password = Column(String)
-     plan = Column(String, default="free")
+     plan = Column(String, nullable=True, default="")
 
      # 🔽 추가 필드들
      nickname = Column(String, default="NewUser")
-     selected_model = Column(String, default="GPT-4")
+     selected_model = Column(String, nullable=True, default="")
      total_tokens_used = Column(Integer, default=0)
      credit_usage = Column(Integer, default=0)
      requests_processed = Column(Integer, default=0)

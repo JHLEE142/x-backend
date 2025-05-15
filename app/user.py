@@ -55,3 +55,16 @@ def read_users_me(current_user: models.User = Depends(get_current_user)):
         "requests_processed": current_user.requests_processed,
         "weekly_stat": current_user.weekly_stat,
     }
+
+@router.patch("/user/upgrade")
+def upgrade_user_plan(
+    user_id: int, plan: str, selected_model: str, db: Session = Depends(get_db)
+):
+    user = db.query(models.User).filter(models.User.id == user_id).first()
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+
+    user.plan = plan
+    user.selected_model = selected_model
+    db.commit()
+    return {"message": "Plan upgraded"}
