@@ -11,6 +11,7 @@ app.add_middleware(
     allow_origins=[
         "http://localhost:3000",           # ✅ 개발 환경
         "https://fastapi-backend-p5j9.onrender.com",  # ✅ 자기 자신도 포함
+        "https://www.aistudio-comet.world",  # 프론트엔드 도메인
     ],
     allow_credentials=True,
     allow_methods=["*"],
