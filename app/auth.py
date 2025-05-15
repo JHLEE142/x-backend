@@ -47,10 +47,30 @@ def signup(data: SignupInput, db: Session = Depends(get_db)):
     db.refresh(user)
     return {"message": "User created"}
 
+def verify_password(plain_password, hashed_password):
+    return pwd_context.verify(plain_password, hashed_password)
+
+#@router.post("/login")
+#def login(data: LoginInput, db: Session = Depends(get_db)):
+#    user = db.query(models.User).filter(models.User.email == data.email).first()
+#    if not user or not pwd_context.verify(data.password, user.hashed_password):
+#        raise HTTPException(status_code=401, detail="Invalid credentials")
+#    token = jwt.encode({"user_id": user.id}, SECRET_KEY, algorithm=ALGORITHM)
+#    return {"token": token}
+
 @router.post("/login")
-def login(data: LoginInput, db: Session = Depends(get_db)):
-    user = db.query(models.User).filter(models.User.email == data.email).first()
-    if not user or not pwd_context.verify(data.password, user.hashed_password):
-        raise HTTPException(status_code=401, detail="Invalid credentials")
-    token = jwt.encode({"user_id": user.id}, SECRET_KEY, algorithm=ALGORITHM)
-    return {"token": token}
+def login(login_data: dict, db: Session = Depends(SessionLocal)):
+    print("📩 로그인 시도:", login_data["email"])
+    user = db.query(User).filter(User.email == login_data["email"]).first()
+
+    if not user:
+        print("❌ 사용자 없음")
+        raise HTTPException(status_code=400, detail="Invalid credentials")
+
+    print("🔐 비밀번호 검증 시작")
+    if not verify_password(login_data["password"], user.hashed_password):
+        print("❌ 비밀번호 불일치")
+        raise HTTPException(status_code=400, detail="Invalid credentials")
+
+    print("✅ 로그인 성공")
+    return {"message": "Login successful", "user_id": user.id}

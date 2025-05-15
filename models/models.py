@@ -1,18 +1,27 @@
 ## backend/models/models.py
-from sqlalchemy import Column, Integer, String, DateTime, ForeignKey, Text
+from sqlalchemy import Column, Integer, String, DateTime, Float, ForeignKey, Text
 from sqlalchemy.orm import relationship
 from database import Base
 from datetime import datetime
 
 class User(Base):
-    __tablename__ = "users"
-    id = Column(Integer, primary_key=True, index=True)
-    email = Column(String, unique=True, index=True)
-    hashed_password = Column(String)
-    plan = Column(String, default="free")
+     __tablename__ = "users"
 
-    chats = relationship("Chat", back_populates="owner")
-    templates = relationship("Template", back_populates="owner")
+     id = Column(Integer, primary_key=True, index=True)
+     email = Column(String, unique=True, index=True)
+     hashed_password = Column(String)
+     plan = Column(String, default="free")
+
+     # 🔽 추가 필드들
+     nickname = Column(String, default="NewUser")
+     selected_model = Column(String, default="GPT-4")
+     total_tokens_used = Column(Integer, default=0)
+     credit_usage = Column(Integer, default=0)
+     requests_processed = Column(Integer, default=0)
+     weekly_stat = Column(Float, default=0.0)
+
+     chats = relationship("Chat", back_populates="owner")
+     templates = relationship("Template", back_populates="owner")
 
 class Chat(Base):
     __tablename__ = "chats"
