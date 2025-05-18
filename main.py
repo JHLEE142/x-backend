@@ -31,3 +31,8 @@ async def startup_event():
 @app.get("/")
 def root():
     return {"message": "FastAPI backend for x-project is running"}
+
+# ✅ 여기에 디버깅용 라우트 추가
+@app.get("/debug-db-url")
+def debug_db_url():
+    return {"DATABASE_URL": os.getenv("DATABASE_URL")}
