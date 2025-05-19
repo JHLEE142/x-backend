@@ -1,11 +1,14 @@
 ## backend/app/chat.py
 from fastapi import APIRouter, Depends
 from sqlalchemy.orm import Session
-from database import SessionLocal
-from models import models
-from datetime import datetime
+from database import get_db
+from models.chat import Chat
+from jose import jwt
+from fastapi import Request, HTTPException
 
 router = APIRouter()
+
+SECRET_KEY = os.getenv("SECRET_KEY", "mysecret")
 
 def get_db():
     db = SessionLocal()
@@ -34,3 +37,17 @@ def save_chat(user_id: int, content: str, db: Session = Depends(get_db)):
 def get_history(user_id: int, db: Session = Depends(get_db)):
     chats = db.query(models.Chat).filter(models.Chat.user_id == user_id).all()
     return chats
+
+def get_current_user_id(request: Request):
+    token = request.headers.get("Authorization")
+    if not token or not token.startswith("Bearer "):
+        raise HTTPException(status_code=401, detail="Invalid token")
+    token = token.replace("Bearer ", "")
+    payload = jwt.decode(token, SECRET_KEY, algorithms=["HS256"])
+    return payload.get("sub")
+
+@router.get("/chat/user")
+def get_user_chats(request: Request, db: Session = Depends(get_db)):
+    user_id = get_current_user_id(request)
+    chats = db.query(Chat).filter(Chat.user_id == user_id).order_by(Chat.created_at.desc()).all()
+    return [{"id": chat.id, "title": chat.title} for chat in chats]

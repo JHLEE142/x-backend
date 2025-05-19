@@ -1,19 +1,23 @@
-## backend/database.py
+# backend/database.py
+
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker, declarative_base
 import os
-from dotenv import load_dotenv
 
-load_dotenv()
+DATABASE_URL = os.getenv("DATABASE_URL")
 
-DATABASE_URL = os.getenv("DATABASE_URL", "sqlite:///./test.db")
-
-print("✅ 사용 중인 DATABASE_URL:", os.getenv("DATABASE_URL"))
-
-engine = create_engine(DATABASE_URL, connect_args={"check_same_thread": False} if "sqlite" in DATABASE_URL else {})
+engine = create_engine(DATABASE_URL)
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
+
 Base = declarative_base()
 
+def get_db():
+    db = SessionLocal()
+    try:
+        yield db
+    finally:
+        db.close()
+
 def create_tables():
-    from models import models
+    from models import user  # Add other models if needed
     Base.metadata.create_all(bind=engine)
