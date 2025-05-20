@@ -1,4 +1,4 @@
-## backend/models/models.py
+## backend/db/models.py
 from sqlalchemy import Column, Integer, String, DateTime, Float, ForeignKey, Text
 from sqlalchemy.orm import relationship
 from database import Base
@@ -27,10 +27,14 @@ class Chat(Base):
     __tablename__ = "chats"
     id = Column(Integer, primary_key=True, index=True)
     user_id = Column(Integer, ForeignKey("users.id"))
-    content = Column(Text)
-    timestamp = Column(DateTime, default=datetime.utcnow)
+    title = Column(String, default="Untitled")               # ✅ 제목 필드
+    prompt = Column(Text)                                    # ✅ 입력 프롬프트
+    response = Column(Text)                                  # ✅ GPT 응답
+    token_usage = Column(Integer, default=0)                 # ✅ 추정 토큰 사용량
+    created_at = Column(DateTime, default=datetime.utcnow)
 
     owner = relationship("User", back_populates="chats")
+
 
 class Template(Base):
     __tablename__ = "templates"
