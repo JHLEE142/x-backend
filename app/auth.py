@@ -1,12 +1,11 @@
-## backend/app/auth.py
+# backend/app/auth.py
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 from database import SessionLocal
 from models import models
 from passlib.context import CryptContext
-from jose import jwt
-import os
 from pydantic import BaseModel
+from auth.jwt_utils import create_jwt_token
 
 class LoginInput(BaseModel):
     email: str
@@ -18,8 +17,6 @@ class SignupInput(BaseModel):
     nickname: str
 
 router = APIRouter()
-SECRET_KEY = os.getenv("SECRET_KEY", "mysecret")
-ALGORITHM = "HS256"
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
 def get_db():
@@ -37,10 +34,10 @@ def signup(data: SignupInput, db: Session = Depends(get_db)):
             email=data.email,
             hashed_password=hashed_pw,
             nickname=data.nickname,
-            selected_model="",
-            plan="",
+            selected_model="gpt-3.5",
+            plan="basic",
             total_tokens_used=0,
-            credit_usage=0,
+            credit_usage=100,
             requests_processed=0,
             weekly_stat=0.0
         )
@@ -52,28 +49,29 @@ def signup(data: SignupInput, db: Session = Depends(get_db)):
         print("❌ Signup failed", str(e))
         raise HTTPException(status_code=500, detail="Signup failed")
 
-def verify_password(plain_password, hashed_password):
-    return pwd_context.verify(plain_password, hashed_password)
-
 @router.post("/login")
 def login(data: LoginInput, db: Session = Depends(get_db)):
-    print("🔐 Login attempt:", data.email)
+    user = db.query(models.User).filter(models.User.email == data.email).first()
 
-    try:
-        user = db.query(models.User).filter(models.User.email == data.email).first()
+    if not user or not pwd_context.verify(data.password, user.hashed_password):
+        raise HTTPException(status_code=401, detail="Invalid credentials")
 
-        if not user:
-            print("❌ User not found:", data.email)
-            raise HTTPException(status_code=401, detail="Invalid credentials")
+    # ✅ JWT 발급
+    token = create_jwt_token({
+        "id": str(user.id),
+        "email": user.email,
+        "name": user.nickname,
+        "plan": user.plan,
+        "credit_usage": user.credit_usage
+    })
 
-        if not pwd_context.verify(data.password, user.hashed_password):
-            print("❌ Incorrect password for:", data.email)
-            raise HTTPException(status_code=401, detail="Invalid credentials")
-
-        token = jwt.encode({"user_id": user.id}, SECRET_KEY, algorithm=ALGORITHM)
-        print("✅ Login successful:", user.email)
-        return {"token": token}
-
-    except Exception as e:
-        print("🚨 Exception during login:", str(e))
-        raise HTTPException(status_code=500, detail="Internal server error")
+    return {
+        "token": token,
+        "user": {
+            "id": str(user.id),
+            "email": user.email,
+            "name": user.nickname,
+            "plan": user.plan,
+            "credit_usage": user.credit_usage
+        }
+    }

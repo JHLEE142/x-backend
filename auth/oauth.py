@@ -42,49 +42,63 @@ async def oauth_login(request: Request, provider: str):
     return await oauth.create_client(provider).authorize_redirect(request, redirect_uri)
 
 # ✅ 공통 콜백 처리
-@router.get("/auth/{provider}/callback")
-async def oauth_callback(request: Request, provider: str, db: Session = Depends(get_db)):
-    client = oauth.create_client(provider)
-    token = await client.authorize_access_token(request)
+@@router.get("/auth/callback/{provider}", response_class=HTMLResponse)
+ async def auth_callback(request: Request, provider: str, db: Session = Depends(get_db)):
+     oauth_client = oauth.create_client(provider)
+     token = await oauth_client.authorize_access_token(request)
 
-    if provider == "google":
-        user_info = await client.parse_id_token(request, token)
-        email = user_info.get("email")
-        name = user_info.get("name")
+     if provider == "google":
+         userinfo = await oauth_client.parse_id_token(request, token)
+         email = userinfo["email"]
+         name = userinfo["name"]
+         uid = userinfo["sub"]
+     else:
+         resp = await oauth_client.get("user", token=token)
+         profile = resp.json()
+         email = profile.get("email", f'{profile["login"]}@github.com')
+         name = profile["login"]
+         uid = str(profile["id"])
 
-    elif provider == "github":
-        resp = await client.get("user", token=token)
-        user_info = resp.json()
-        email = user_info.get("email")
-        name = user_info.get("name")
+     # ✅ 기존 유저 확인 또는 신규 생성
+     user = db.query(models.User).filter(models.User.email == email).first()
+     if not user:
+         user = models.User(
+             email=email,
+             hashed_password="social-login",  # 소셜 로그인은 패스워드 없음
+             nickname=name,
+             selected_model="gpt-3.5",
+             plan="basic",
+             total_tokens_used=0,
+             credit_usage=100,
+             requests_processed=0,
+             weekly_stat=0.0
+         )
+         db.add(user)
+         db.commit()
+         db.refresh(user)
 
-        # GitHub의 경우 이메일이 null일 수 있어 별도 요청
-        if not email:
-            emails_resp = await client.get("user/emails", token=token)
-            emails = emails_resp.json()
-            primary_email = next((e["email"] for e in emails if e["primary"] and e["verified"]), None)
-            email = primary_email
+     # ✅ JWT 발급
+     jwt_token = create_jwt_token({
+         "id": str(user.id),
+         "email": user.email,
+         "name": user.nickname,
+         "plan": user.plan,
+         "credit_usage": user.credit_usage
+     })
 
-    else:
-        return {"error": "Unsupported provider"}
-
-    if not email:
-        return {"error": "Email not found from provider"}
-
-    # ✅ 사용자 DB 저장 또는 조회
-    user = db.query(User).filter(User.email == email).first()
-    if not user:
-        user = User(email=email, name=name, provider=provider)
-        db.add(user)
-        db.commit()
-        db.refresh(user)
-
-    # ✅ JWT 발급
-    encoded_token = jwt.encode(
-        {"sub": str(user.id)},
-        os.getenv("SECRET_KEY", "mysecret"),
-        algorithm="HS256"
-    )
-
-    frontend_url = f"https://www.aistudio-comet.world/login?token={encoded_token}"
-    return RedirectResponse(url=frontend_url)
+     # ✅ 클라이언트에 token + user 전달
+     return f"""
+     <script>
+       window.opener.postMessage({{
+         token: "{jwt_token}",
+         user: {{
+           id: "{user.id}",
+           name: "{user.nickname}",
+           email: "{user.email}",
+           plan: "{user.plan}",
+           credit_usage: {user.credit_usage}
+         }}
+       }}, "*");
+       window.close();
+     </script>
+     """
