@@ -1,11 +1,15 @@
 # backend/app/auth.py
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Request
 from sqlalchemy.orm import Session
 from database import SessionLocal
 from models import models
 from passlib.context import CryptContext
 from pydantic import BaseModel
 from auth.jwt_utils import create_jwt_token
+from jose import jwt
+import os
+
+SECRET_KEY = os.getenv("SECRET_KEY", "mysecret")
 
 class LoginInput(BaseModel):
     email: str
@@ -74,4 +78,31 @@ def login(data: LoginInput, db: Session = Depends(get_db)):
             "plan": user.plan,
             "credit_usage": user.credit_usage
         }
+    }
+
+def get_current_user_id(request: Request):
+    token = request.headers.get("Authorization")
+    if not token or not token.startswith("Bearer "):
+        raise HTTPException(status_code=401, detail="Invalid token")
+    token = token.replace("Bearer ", "")
+    payload = jwt.decode(token, SECRET_KEY, algorithms=["HS256"])
+    return int(payload.get("sub"))
+
+@router.get("/me")
+def get_me(request: Request, db: Session = Depends(get_db)):
+    user_id = get_current_user_id(request)
+    user = db.query(models.User).get(user_id)
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+
+    return {
+        "id": user.id,
+        "email": user.email,
+        "nickname": user.nickname,
+        "plan": user.plan,
+        "credit_usage": user.credit_usage,
+        "total_tokens_used": user.total_tokens_used,
+        "requests_processed": user.requests_processed,
+        "weekly_stat": user.weekly_stat,
+        "last_active": user.last_active
     }
