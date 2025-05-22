@@ -6,7 +6,10 @@ from database import create_tables
 from fastapi.middleware.cors import CORSMiddleware
 from auth.oauth import router as oauth_router
 import os
+import sys
 from routes import chat
+
+sys.path.append(os.path.dirname(os.path.abspath(__file__)))  # main.py 경로를 모듈 경로로 추가
 
 app = FastAPI()  # ✅ 먼저 선언해야 이후 라우터 등록이 유효해짐
 
