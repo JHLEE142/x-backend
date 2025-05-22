@@ -4,7 +4,6 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 import os
 import sys
-from routes import chat
 
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))  # main.py 경로를 모듈 경로로 추가
 
