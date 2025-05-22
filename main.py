@@ -47,3 +47,14 @@ def root():
 @app.get("/debug-db-url")
 def debug_db_url():
     return {"DATABASE_URL": os.getenv("DATABASE_URL")}
+
+@router.get("/google/login")
+async def oauth_login(request: Request):
+    redirect_uri = request.url_for("auth_callback", provider="google")
+    return await oauth.google.authorize_redirect(request, redirect_uri)
+
+@router.get("/callback/google", name="auth_callback")
+async def auth_callback(request: Request):
+    token = await oauth.google.authorize_access_token(request)
+    userinfo = await oauth.google.parse_id_token(request, token)
+    return userinfo
