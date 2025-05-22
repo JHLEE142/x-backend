@@ -2,7 +2,8 @@
 from fastapi import APIRouter, Depends, HTTPException, Request
 from sqlalchemy.orm import Session
 from database import SessionLocal
-from models import models
+from db import models
+from db.models import User, Chat
 from passlib.context import CryptContext
 from pydantic import BaseModel
 from auth.jwt_utils import create_jwt_token
