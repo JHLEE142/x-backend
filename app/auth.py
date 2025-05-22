@@ -1,9 +1,10 @@
 # backend/app/auth.py
+
 from fastapi import APIRouter, Depends, HTTPException, Request
 from sqlalchemy.orm import Session
 from database import SessionLocal
 from db import models
-from db.models import User, Chat
+from db.models import User
 from passlib.context import CryptContext
 from pydantic import BaseModel
 from auth.jwt_utils import create_jwt_token
@@ -35,7 +36,7 @@ def get_db():
 def signup(data: SignupInput, db: Session = Depends(get_db)):
     try:
         hashed_pw = pwd_context.hash(data.password)
-        user = models.User(
+        user = User(
             email=data.email,
             hashed_password=hashed_pw,
             nickname=data.nickname,
@@ -56,12 +57,10 @@ def signup(data: SignupInput, db: Session = Depends(get_db)):
 
 @router.post("/login")
 def login(data: LoginInput, db: Session = Depends(get_db)):
-    user = db.query(models.User).filter(models.User.email == data.email).first()
-
+    user = db.query(User).filter(User.email == data.email).first()
     if not user or not pwd_context.verify(data.password, user.hashed_password):
         raise HTTPException(status_code=401, detail="Invalid credentials")
 
-    # ✅ JWT 발급
     token = create_jwt_token({
         "id": str(user.id),
         "email": user.email,
@@ -81,29 +80,24 @@ def login(data: LoginInput, db: Session = Depends(get_db)):
         }
     }
 
-def get_current_user_id(request: Request):
-    token = request.headers.get("Authorization")
-    if not token or not token.startswith("Bearer "):
-        raise HTTPException(status_code=401, detail="Invalid token")
-    token = token.replace("Bearer ", "")
-    payload = jwt.decode(token, SECRET_KEY, algorithms=["HS256"])
-    return int(payload.get("sub"))
-
 @router.get("/me")
 def get_me(request: Request, db: Session = Depends(get_db)):
-    user_id = get_current_user_id(request)
-    user = db.query(models.User).get(user_id)
+    token = request.headers.get("Authorization")
+    if not token or not token.startswith("Bearer "):
+        raise HTTPException(status_code=401, detail="Missing or invalid token")
+
+    token = token.replace("Bearer ", "")
+    payload = jwt.decode(token, SECRET_KEY, algorithms=["HS256"])
+    user_id = payload.get("id")
+
+    user = db.query(User).filter(User.id == user_id).first()
     if not user:
         raise HTTPException(status_code=404, detail="User not found")
 
     return {
-        "id": user.id,
+        "id": str(user.id),
         "email": user.email,
         "nickname": user.nickname,
         "plan": user.plan,
-        "credit_usage": user.credit_usage,
-        "total_tokens_used": user.total_tokens_used,
-        "requests_processed": user.requests_processed,
-        "weekly_stat": user.weekly_stat,
-        "last_active": user.last_active
+        "credit_usage": user.credit_usage
     }
